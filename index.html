@@ -725,6 +725,14 @@
       return `<div class="kpi"><div class="kpi-label">${escapeHtml(label)}</div><div class="kpi-value">${escapeHtml(value)}</div></div>`;
     }
 
+    // For tiles inside .report-kpis (printable Certificate / Pre-Handover Checklist) --
+    // distinct from reportKpiTile() above, which is for the on-screen .kpis grid in the
+    // Handover panel. The print report CSS defines colorful solid-fill .report-kpi tiles
+    // that reportKpiTile()'s .kpi markup never actually matched.
+    function printKpiTile(label, value) {
+      return `<div class="report-kpi"><div class="report-kpi-label">${escapeHtml(label)}</div><div class="report-kpi-value">${escapeHtml(value)}</div></div>`;
+    }
+
     function tallyFromItems(items) {
       const t = { WorkingCount: 0, DamagedCount: 0, MissingCount: 0, NotVerifiedCount: 0 };
       items.forEach(i => {
@@ -908,18 +916,14 @@
       }
     });
 
-    function truncateText(text, max) {
-      const s = String(text || "");
-      return s.length > max ? s.slice(0, max - 1) + "…" : s;
-    }
-
     function renderPreHandoverChecklist() {
       const el = $("#pdfReport");
       const cfg = state.config || {};
+      const k = state.kpis || {};
       const leftLogo = normalizeLogoUrl(cfg.logoLeftUrl);
       const rightLogo = normalizeLogoUrl(cfg.logoRightUrl);
       const inventory = state.inventory || [];
-      const categories = new Set(inventory.map(i => i.Category)).size;
+      const categories = k.categories ?? new Set(inventory.map(i => i.Category)).size;
       const CHECKBOX_ROW = ["W", "NW", "NR", "UC", "M"]
         .map(label => `&#9744;${label}`).join("&nbsp;");
 
@@ -930,14 +934,14 @@
           : "";
         lastCategory = i.Category;
         const sub = [];
-        if (i.Accessories) sub.push(`Acc: ${escapeHtml(truncateText(i.Accessories, 70))}`);
-        if (i.LegacyRemarks && norm(i.LegacyRemarks) !== "nil") sub.push(`Rem: ${escapeHtml(truncateText(i.LegacyRemarks, 70))}`);
+        if (i.Accessories) sub.push(`Acc: ${escapeHtml(i.Accessories)}`);
+        if (i.LegacyRemarks && norm(i.LegacyRemarks) !== "nil") sub.push(`Rem: ${escapeHtml(i.LegacyRemarks)}`);
         const subLine = sub.length ? `<br><span style="color:var(--muted);font-size:8.5px">${sub.join(" &middot; ")}</span>` : "";
         return `${categoryHeader}<tr>
           <td>${escapeHtml(i.AssetID)}</td>
           <td>${escapeHtml(i.EquipmentName)}${subLine}</td>
           <td>${escapeHtml(i.Quantity)}</td>
-          <td>${escapeHtml(truncateText(i.SerialNumber, 24))}</td>
+          <td>${escapeHtml(i.SerialNumber)}</td>
           <td style="color:var(--muted)">${escapeHtml(i.Condition || "Not Yet Verified")}</td>
           <td style="white-space:nowrap">${CHECKBOX_ROW} &nbsp;Notes:_________</td>
         </tr>`;
@@ -953,9 +957,18 @@
             <div class="report-cover-title" style="font-size:clamp(22px,3.4vw,34px)">Equipment Handover <em>Pre-Inspection Reference</em></div>
             <div class="report-cover-sub">${escapeHtml(cfg.portalName || "EE Lab Digital Handover")} — reference copy for the physical walkthrough</div>
           </div>
-          <div class="report-cover-sub">Printed ${formatDate(new Date())} &middot; ${inventory.length} assets across ${categories} categories &middot;
+          <div class="report-cover-sub">Printed ${formatDate(new Date())} &middot;
             <b>Reference-only</b>, no signatures — handover is signed digitally via email OTP; codes: W=Working NW=Not Working NR=Needs Repair UC=Under Calibration M=Missing
           </div>
+        </div>
+
+        <div class="report-kpis" style="grid-template-columns:repeat(6,minmax(0,1fr));padding:10px 12px">
+          ${printKpiTile("Total Assets", k.totalAssets ?? inventory.length)}
+          ${printKpiTile("Working", k.working ?? 0)}
+          ${printKpiTile("Needs Attention", k.needsAttention ?? 0)}
+          ${printKpiTile("Missing", k.missing ?? 0)}
+          ${printKpiTile("Not Yet Verified", k.notYetVerified ?? 0)}
+          ${printKpiTile("Categories", categories)}
         </div>
 
         <div class="report-section" style="padding:8px 12px">
@@ -995,10 +1008,10 @@
         </div>
 
         <div class="report-kpis">
-          ${reportKpiTile("Working", tally.WorkingCount)}
-          ${reportKpiTile("Needs Attention", tally.DamagedCount)}
-          ${reportKpiTile("Missing", tally.MissingCount)}
-          ${reportKpiTile("Not Verified", tally.NotVerifiedCount)}
+          ${printKpiTile("Working", tally.WorkingCount)}
+          ${printKpiTile("Needs Attention", tally.DamagedCount)}
+          ${printKpiTile("Missing", tally.MissingCount)}
+          ${printKpiTile("Not Verified", tally.NotVerifiedCount)}
         </div>
 
         <div class="report-section">
