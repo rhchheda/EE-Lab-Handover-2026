@@ -645,7 +645,10 @@
             <div class="banner-title">No handover currently in progress</div>
             <div class="banner-body">Start a new custody transfer below. The outgoing in-charge will receive an email verification code to digitally sign the release.</div>
           </div>
-          <button class="primary" id="openStart">Start New Handover</button>`;
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="primary" id="openStart">Start New Handover</button>
+            <button class="ghost" data-print-checklist>Print Reference Checklist for Walkthrough</button>
+          </div>`;
         $("#openStart").addEventListener("click", () => $("#startDialog").showModal());
         return;
       }
@@ -874,29 +877,98 @@
     // ---------------------------------------------------------------------
     // Reports
     // ---------------------------------------------------------------------
+    const BLANK_CHECKLIST_OPTION = "__blank__";
+
     function renderReportSelector() {
       const rows = state.history || [];
       const sel = $("#reportCycleSelect");
+      const blankOption = `<option value="${BLANK_CHECKLIST_OPTION}">📋 Blank Pre-Handover Checklist (print & sign)</option>`;
       if (!rows.length) {
-        sel.innerHTML = `<option value="">No completed cycles yet</option>`;
-        state.reportCycleId = null;
+        sel.innerHTML = blankOption;
+        state.reportCycleId = BLANK_CHECKLIST_OPTION;
         renderReport();
         return;
       }
-      if (!state.reportCycleId) state.reportCycleId = rows[0].CycleId;
-      sel.innerHTML = rows.map(c => `<option value="${escapeHtml(c.CycleId)}" ${c.CycleId === state.reportCycleId ? "selected" : ""}>${escapeHtml(c.CycleId)} — ${escapeHtml(c.OutgoingName)} to ${escapeHtml(c.IncomingName)}</option>`).join("");
+      if (!state.reportCycleId) state.reportCycleId = BLANK_CHECKLIST_OPTION;
+      sel.innerHTML = blankOption + rows.map(c => `<option value="${escapeHtml(c.CycleId)}" ${c.CycleId === state.reportCycleId ? "selected" : ""}>${escapeHtml(c.CycleId)} — ${escapeHtml(c.OutgoingName)} to ${escapeHtml(c.IncomingName)}</option>`).join("");
       renderReport();
     }
     $("#reportCycleSelect").addEventListener("change", (e) => { state.reportCycleId = e.target.value; renderReport(); });
     document.addEventListener("click", (e) => {
       if (e.target.closest("[data-action='print-report']")) window.print();
       if (e.target.closest("[data-action='sync']")) refreshPortal();
+      const jumpToChecklist = e.target.closest("[data-print-checklist]");
+      if (jumpToChecklist) {
+        state.reportCycleId = BLANK_CHECKLIST_OPTION;
+        openPanel("reports");
+        renderReportSelector();
+      }
     });
+
+    function renderPreHandoverChecklist() {
+      const el = $("#pdfReport");
+      const cfg = state.config || {};
+      const leftLogo = normalizeLogoUrl(cfg.logoLeftUrl);
+      const rightLogo = normalizeLogoUrl(cfg.logoRightUrl);
+      const inventory = state.inventory || [];
+      const categories = new Set(inventory.map(i => i.Category)).size;
+      const CHECKBOX_ROW = ["Working", "Not Working", "Needs Repair", "Under Calibration", "Missing"]
+        .map(label => `&#9744; ${escapeHtml(label)}`).join("&nbsp;&nbsp;&nbsp;");
+
+      let lastCategory = null;
+      const rowsHtml = inventory.map(i => {
+        const categoryHeader = i.Category !== lastCategory
+          ? `<tr><td colspan="6" style="background:#0d1b3e;color:#fff;font-weight:700">${escapeHtml(i.Category || "Uncategorized")}</td></tr>`
+          : "";
+        lastCategory = i.Category;
+        return `${categoryHeader}<tr>
+          <td>${escapeHtml(i.AssetID)}</td>
+          <td>${escapeHtml(i.EquipmentName)}</td>
+          <td>${escapeHtml(i.Location)}</td>
+          <td>${escapeHtml(i.SerialNumber)}</td>
+          <td style="color:var(--muted)">${escapeHtml(i.Condition || "Not Yet Verified")}</td>
+          <td style="font-size:11px">${CHECKBOX_ROW}<br><span style="color:var(--muted)">Damage/Notes: _______________________________</span></td>
+        </tr>`;
+      }).join("");
+
+      el.innerHTML = `
+        <div class="pdf-cover">
+          <div class="report-logos-row">
+            <div class="report-logo-slot">${leftLogo ? `<img src="${escapeHtml(leftLogo)}" alt="logo">` : `<div class="report-logo-placeholder">Add Logo</div>`}</div>
+            <div class="report-logo-slot">${rightLogo ? `<img src="${escapeHtml(rightLogo)}" alt="logo">` : `<div class="report-logo-placeholder">Add Logo</div>`}</div>
+          </div>
+          <div>
+            <div class="report-cover-title">Equipment Handover <em>Pre-Inspection Reference</em></div>
+            <div class="report-cover-sub">${escapeHtml(cfg.portalName || "EE Lab Digital Handover")} — reference copy for the physical walkthrough</div>
+          </div>
+          <div class="report-cover-sub">Printed ${formatDate(new Date())} &middot; ${inventory.length} assets across ${categories} categories</div>
+        </div>
+
+        <div class="report-section">
+          <div class="report-section-title">How to use this form</div>
+          <div class="report-note" style="font-size:13px">
+            This is a <b>reference-only</b> copy to carry during the physical walkthrough — jot down functionality,
+            serial confirmation, and any damage against each item as you go. It has no signature section: the
+            handover itself is completed and signed entirely in the digital portal (each party verifies with a
+            one-time email code). Enter what you find here into the portal's Handover checklist afterward — that
+            digital record, not this paper, is the official source of truth.
+          </div>
+        </div>
+
+        <div class="report-section">
+          <div class="report-section-title">Equipment Checklist (${inventory.length} items)</div>
+          <table class="report-table">
+            <thead><tr><th>Asset ID</th><th>Equipment</th><th>Location</th><th>Serial #</th><th>Last Recorded</th><th>Notes from walkthrough</th></tr></thead>
+            <tbody>${rowsHtml || `<tr><td colspan="6">No inventory loaded.</td></tr>`}</tbody>
+          </table>
+        </div>
+      `;
+    }
 
     async function renderReport() {
       const el = $("#pdfReport");
-      if (!state.reportCycleId) {
-        el.innerHTML = `<div class="empty">No completed handover to report on yet.</div>`;
+      if (!state.reportCycleId || state.reportCycleId === BLANK_CHECKLIST_OPTION) {
+        renderPreHandoverChecklist();
         return;
       }
       const res = await api("getCycleReport", { cycleId: state.reportCycleId });
