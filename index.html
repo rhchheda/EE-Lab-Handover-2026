@@ -287,7 +287,7 @@
     <div class="loading-box">
       <div class="loading-rings"><div class="loading-dot"></div></div>
       <div class="loading-logo">EE Lab <span>Handover</span></div>
-      <div class="loading-text" id="loadingText">Connecting to the Handover Register</div>
+      <div class="loading-text" id="loadingText">Connecting to the EE Lab,Database...</div>
     </div>
   </div>
 
@@ -295,8 +295,8 @@
     <div class="letterhead">
       <div class="logo-slot" id="logoLeft"><div class="logo-placeholder">Add Logo<br>(LHS)</div></div>
       <div class="letterhead-center">
-        <div class="brand-name" id="portalNameTop">EE Lab Digital Handover</div>
-        <div class="brand-sub" id="portalSubTop">KLE Technological University — Electronics &amp; Electrical Lab</div>
+        <div class="brand-name" id="portalNameTop">Electronics Enabling Lab Digital Handover</div>
+        <div class="brand-sub" id="portalSubTop">KLE Technological University — Electronics &amp; Enabling Lab</div>
       </div>
       <div class="logo-slot" id="logoRight"><div class="logo-placeholder">Add Logo<br>(RHS)</div></div>
     </div>
@@ -497,7 +497,7 @@
     function applyConfig() {
       const c = state.config || {};
       $("#portalNameTop").textContent = c.portalName || "EE Lab Digital Handover";
-      $("#portalSubTop").textContent = c.portalSub || "KLE Technological University — Electronics & Electrical Lab";
+      $("#portalSubTop").textContent = c.portalSub || "KLE Technological University — Electronics Enabling Lab";
       renderLogo("#logoLeft", c.logoLeftUrl, "LHS");
       renderLogo("#logoRight", c.logoRightUrl, "RHS");
       $("#footerUpdated").textContent = c.lastUpdated || "--";
@@ -1117,7 +1117,7 @@
     function demoSeed() {
       return {
         config: {
-          portalName: "EE Lab Digital Handover", portalSub: "KLE Technological University — Electronics & Electrical Lab (Demo Mode)",
+          portalName: "EE Lab Digital Handover", portalSub: "KLE Technological University — Electronics Enabling Lab (Demo Mode)",
           logoLeftUrl: "", logoRightUrl: "", otpWindowHours: 72, otpExpiryMinutes: 10, otpCodeLength: 6,
           escalationEmails: "eelab.head@kletech.ac.in", allowedEmailDomain: "", lastUpdated: "Demo mode — connect GAS_URL for live data"
         },
