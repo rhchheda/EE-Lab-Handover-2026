@@ -519,6 +519,7 @@
     function renderAll() {
       renderKpis();
       renderDashboardBanner();
+      renderCategoryFilter();
       renderInventory();
       renderHandover();
       renderHistory();
@@ -584,7 +585,6 @@
     }
 
     function renderInventory() {
-      renderCategoryFilter();
       const q = norm($("#invSearch")?.value);
       const cat = $("#invCategory")?.value || "";
       const cond = $("#invCondition")?.value || "";
