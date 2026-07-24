@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EE Lab Digital Handover Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #0d1b3e;
+      --navy-2: #182b55;
+      --gold: #c9a84c;
+      --gold-2: #ead282;
+      --ink: #13203c;
+      --muted: #68758f;
+      --line: rgba(13, 27, 62, 0.12);
+      --paper: #ffffff;
+      --soft: #f5f1e8;
+      --wash: #eef3f8;
+      --green: #1f7a4d;
+      --red: #c24035;
+      --blue: #226da8;
+      --violet: #7251a5;
+      --cyan: #1b8a9a;
+      --rose: #be3455;
+      --shadow: 0 18px 45px rgba(13, 27, 62, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Outfit, system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--soft);
+      min-height: 100vh;
+      padding-bottom: 38px;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+
+    .loading {
+      position: fixed; inset: 0; z-index: 50;
+      display: grid; place-items: center;
+      background: var(--navy); color: white;
+    }
+    .loading.hidden { display: none; }
+    .loading-box { text-align: center; }
+    .loading-logo { font-family: "Cormorant Garamond", serif; font-size: 42px; font-weight: 600; }
+    .loading-logo span { color: var(--gold); font-style: italic; }
+    .loading-text { margin-top: 12px; color: rgba(255,255,255,0.55); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .loading-rings { position: relative; width: 86px; height: 86px; margin: 0 auto 18px; }
+    .loading-rings::before, .loading-rings::after {
+      content: ""; position: absolute; inset: 0; border-radius: 50%;
+      border: 2px solid transparent; border-top-color: var(--gold);
+      border-right-color: rgba(234,210,130,0.55); animation: spin 1.4s linear infinite;
+    }
+    .loading-rings::after { inset: 12px; border-top-color: rgba(255,255,255,0.72); animation-duration: 1.9s; animation-direction: reverse; }
+    .loading-dot { position: absolute; inset: 31px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 26px rgba(201,168,76,0.65); animation: pulse 1.25s ease-in-out infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%, 100% { transform: scale(0.78); opacity: 0.65; } 50% { transform: scale(1); opacity: 1; } }
+
+    .letterhead {
+      background: rgba(13, 27, 62, 0.96);
+      border-bottom: 1px solid rgba(201,168,76,0.24);
+      display: flex; align-items: center; justify-content: space-between;
+      max-width: 1240px; margin: 0 auto; padding: 10px 18px;
+      gap: 14px;
+    }
+    .logo-slot { width: 108px; height: 56px; display: flex; align-items: center; justify-content: center; flex: none; }
+    .logo-slot img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .logo-placeholder {
+      width: 100%; height: 100%; border: 1px dashed rgba(234,210,130,0.4); border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(234,210,130,0.55); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; text-align: center;
+    }
+    .letterhead-center { text-align: center; flex: 1; min-width: 0; }
+    .letterhead-center .brand-name { color: white; font-weight: 700; font-size: 19px; line-height: 1.2; }
+    .letterhead-center .brand-sub { color: rgba(255,255,255,0.55); font-size: 11.5px; letter-spacing: 0.03em; margin-top: 3px; }
+
+    .topbar { position: sticky; top: 0; z-index: 20; background: rgba(13, 27, 62, 0.96); color: white; backdrop-filter: blur(10px); }
+    .nav { max-width: 1240px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; padding: 10px 18px 12px; }
+    .nav button {
+      border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.82);
+      min-height: 34px; border-radius: 8px; padding: 7px 13px; font-size: 13px;
+    }
+    .nav button.active { background: var(--gold); color: var(--navy); border-color: var(--gold); font-weight: 700; }
+
+    .hero {
+      background: linear-gradient(120deg, rgba(13,27,62,0.97), rgba(24,43,85,0.94));
+      color: white; position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ""; position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(201,168,76,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.07) 1px, transparent 1px);
+      background-size: 48px 48px; mix-blend-mode: screen; opacity: 0.7;
+    }
+    .hero-inner {
+      position: relative; max-width: 1240px; margin: 0 auto; padding: 40px 18px 30px;
+      display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); gap: 28px; align-items: center;
+    }
+    .eyebrow { color: var(--gold-2); letter-spacing: 0.14em; text-transform: uppercase; font-size: 12px; font-weight: 700; }
+    h1 { font-family: "Cormorant Garamond", serif; font-size: clamp(32px, 5.6vw, 58px); line-height: 1; margin: 10px 0 10px; max-width: 820px; }
+    h1 em { color: var(--gold-2); font-style: italic; }
+    .hero-copy { color: rgba(255,255,255,0.68); max-width: 680px; line-height: 1.65; font-size: 14.5px; }
+    .hero-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .hero-pill { display: inline-flex; align-items: center; min-height: 27px; border: 1px solid rgba(234,210,130,0.3); border-radius: 999px; padding: 6px 10px; color: rgba(255,255,255,0.74); background: rgba(255,255,255,0.05); font-size: 12px; font-weight: 700; }
+
+    .live { border: 1px solid rgba(201,168,76,0.3); padding: 18px; border-radius: 8px; background: linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04)); box-shadow: 0 18px 46px rgba(0,0,0,0.18); }
+    .live-label { color: rgba(255,255,255,0.5); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+    .live-status { margin-top: 6px; font-weight: 700; font-size: 15px; color: var(--gold-2); }
+    .countdown { margin-top: 10px; font-family: "JetBrains Mono", monospace; font-size: 26px; font-weight: 600; color: white; letter-spacing: 0.02em; }
+    .countdown.warn { color: #ffb347; }
+    .countdown.late { color: #ff8a8a; }
+    .live-program { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.68); font-size: 12.5px; line-height: 1.4; }
+    .live-program b { color: white; }
+
+    main { max-width: 1240px; margin: 0 auto; padding: 22px 18px 56px; }
+    .kpis { display: grid; grid-template-columns: repeat(6, minmax(130px, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .kpi { border: 1px solid var(--line); background: var(--paper); border-radius: 8px; padding: 16px; min-height: 106px; box-shadow: 0 10px 26px rgba(13,27,62,0.07); text-align: left; position: relative; overflow: hidden; }
+    .kpi:nth-child(1) { --accent: var(--blue); }
+    .kpi:nth-child(2) { --accent: var(--green); }
+    .kpi:nth-child(3) { --accent: #b8860b; }
+    .kpi:nth-child(4) { --accent: var(--red); }
+    .kpi:nth-child(5) { --accent: var(--muted); }
+    .kpi:nth-child(6) { --accent: var(--violet); }
+    .kpi::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--accent, var(--gold)); }
+    .kpi-label { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+    .kpi-value { font-family: "Cormorant Garamond", serif; font-size: 40px; line-height: 1; margin-top: 9px; color: var(--accent, var(--navy)); }
+    .kpi-sub { color: var(--muted); font-size: 12px; margin-top: 5px; }
+
+    .panel { display: none; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); overflow: hidden; }
+    .panel.active { display: block; }
+    .panel-head { padding: 18px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; align-items: center; background: linear-gradient(180deg, #fff, #fbfaf7); flex-wrap: wrap; }
+    .panel-title { font-size: 20px; font-weight: 700; color: var(--navy); }
+    .panel-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .toolbar { padding: 14px 18px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-bottom: 1px solid var(--line); background: #fbfcfd; }
+    .field { border: 1px solid var(--line); background: white; border-radius: 8px; padding: 10px 11px; min-height: 38px; color: var(--ink); }
+    .search { min-width: 260px; flex: 1; }
+    .primary { border: 1px solid var(--gold); background: var(--gold); color: var(--navy); border-radius: 8px; padding: 10px 15px; min-height: 40px; font-weight: 700; }
+    .primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .ghost { border: 1px solid var(--line); background: white; color: var(--navy); border-radius: 8px; padding: 9px 13px; min-height: 38px; font-weight: 600; }
+    .danger { border: 1px solid var(--red); background: white; color: var(--red); border-radius: 8px; padding: 9px 13px; min-height: 38px; font-weight: 600; }
+
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; background: #f7f9fb; white-space: nowrap; }
+    .status { display: inline-flex; border-radius: 999px; padding: 4px 9px; min-height: 24px; font-size: 11px; font-weight: 700; background: #edf5ef; color: var(--green); white-space: nowrap; }
+    .status.bad { background: #ffecec; color: var(--red); }
+    .status.warn { background: #fff6df; color: #8a6500; }
+    .status.muted { background: #eef1f6; color: var(--muted); }
+
+    .empty { padding: 38px 18px; color: var(--muted); text-align: center; }
+
+    dialog { border: 0; border-radius: 8px; box-shadow: var(--shadow); width: min(520px, calc(100vw - 26px)); padding: 0; }
+    dialog::backdrop { background: rgba(13,27,62,0.5); }
+    .modal-head { padding: 16px 18px; color: white; background: var(--navy); display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .modal-title { font-weight: 700; }
+    .modal-body { padding: 18px; display: grid; gap: 12px; }
+    .modal-body label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+    .modal-actions { padding: 14px 18px 18px; display: flex; justify-content: flex-end; gap: 10px; }
+    .icon-btn { border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.08); color: white; border-radius: 6px; min-width: 30px; min-height: 30px; }
+
+    .otp-input { font-family: "JetBrains Mono", monospace; font-size: 24px; letter-spacing: 10px; text-align: center; }
+
+    .wizard-card { padding: 22px; }
+    .wizard-steps { display: flex; align-items: center; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+    .wizard-step { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 12.5px; font-weight: 700; color: var(--muted); background: #f7f9fb; }
+    .wizard-step .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+    .wizard-step.done { color: var(--green); border-color: rgba(31,122,77,0.3); background: #edf5ef; }
+    .wizard-step.done .dot { background: var(--green); }
+    .wizard-step.active { color: var(--navy); border-color: var(--gold); background: #fdf6e3; }
+    .wizard-step.active .dot { background: var(--gold); }
+    .wizard-arrow { color: var(--line); font-size: 14px; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-grid .wide { grid-column: 1 / -1; }
+    .form-grid label { display: grid; gap: 6px; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+
+    .signoff-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 16px 0; }
+    .signoff-card { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: #fbfcfd; }
+    .signoff-role { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 700; }
+    .signoff-name { font-weight: 700; color: var(--navy); margin-top: 4px; }
+    .signoff-email { font-size: 12.5px; color: var(--muted); }
+    .signoff-state { margin-top: 8px; }
+
+    .progress-track { height: 9px; border-radius: 999px; background: #edf1f6; overflow: hidden; margin: 10px 0; }
+    .progress-fill { height: 100%; border-radius: inherit; background: var(--gold); transition: width 0.3s ease; }
+
+    .banner { border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; border-left: 4px solid; }
+    .banner.success { background: #edf5ef; border-color: var(--green); }
+    .banner.info { background: #eef3f8; border-color: var(--blue); }
+    .banner.warn { background: #fff6df; border-color: #b8860b; }
+    .banner-title { font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+    .banner-body { color: var(--ink); font-size: 13.5px; line-height: 1.5; }
+
+    .checklist-row select, .checklist-row input { font-size: 12.5px; }
+
+    .toast-wrap { position: fixed; right: 16px; bottom: 52px; z-index: 80; display: grid; gap: 10px; width: min(380px, calc(100vw - 32px)); }
+    .toast { border-radius: 8px; border: 1px solid rgba(13,27,62,0.12); background: white; box-shadow: var(--shadow); padding: 12px 14px; display: grid; gap: 3px; animation: toastIn 0.25s ease both; }
+    .toast-title { font-weight: 800; color: var(--navy); font-size: 13px; }
+    .toast-body { color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .toast.error { border-left: 4px solid var(--red); }
+    .toast.success { border-left: 4px solid var(--green); }
+    .toast.info { border-left: 4px solid var(--blue); }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .footer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; height: 38px; display: flex; align-items: center; justify-content: center; gap: 7px; background: var(--navy); color: rgba(255,255,255,0.68); border-top: 1px solid rgba(201,168,76,0.24); font-size: 12px; }
+    .heart { color: #ff2f45; display: inline-block; animation: heartbeat 1.05s ease-in-out infinite; }
+    @keyframes heartbeat { 0%, 100% { transform: scale(1); } 16% { transform: scale(1.28); } 30% { transform: scale(0.94); } 44% { transform: scale(1.18); } 60% { transform: scale(1); } }
+
+    /* --- Printable report --- */
+    .pdf-report { margin: 18px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: white; }
+    .pdf-cover { min-height: 240px; padding: 26px; color: white; background: linear-gradient(100deg, rgba(13,27,62,0.98), rgba(13,27,62,0.85)); display: grid; align-content: space-between; gap: 24px; }
+    .report-logos-row { display: flex; justify-content: space-between; align-items: center; }
+    .report-logo-slot { width: 90px; height: 52px; display: flex; align-items: center; justify-content: center; }
+    .report-logo-slot img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .report-logo-placeholder { width: 100%; height: 100%; border: 1px dashed rgba(234,210,130,0.55); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--gold-2); font-size: 10px; text-transform: uppercase; }
+    .report-cover-title { font-family: "Cormorant Garamond", serif; font-size: clamp(30px, 4.6vw, 50px); line-height: 1; max-width: 760px; text-align: center; }
+    .report-cover-title em { color: var(--gold-2); font-style: italic; }
+    .report-cover-sub { margin-top: 10px; color: rgba(255,255,255,0.72); text-align: center; font-size: 13px; }
+    .report-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 18px; background: #f7f9fb; border-bottom: 1px solid var(--line); }
+    .report-kpi { border-radius: 8px; padding: 14px; color: white; background: var(--navy); min-height: 88px; }
+    .report-kpi:nth-child(2) { background: var(--green); }
+    .report-kpi:nth-child(3) { background: var(--red); }
+    .report-kpi:nth-child(4) { background: var(--muted); }
+    .report-kpi-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.72); }
+    .report-kpi-value { margin-top: 8px; font-family: "Cormorant Garamond", serif; font-size: 34px; line-height: 1; }
+    .report-section { padding: 18px; break-inside: avoid; }
+    .report-section-title { color: var(--navy); font-size: 17px; font-weight: 800; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid var(--gold); }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .report-table th { background: var(--navy); color: white; }
+    .report-table th, .report-table td { border: 1px solid #dfe5ee; padding: 8px 9px; vertical-align: top; }
+    .report-table tr:nth-child(even) td { background: #f8fafc; }
+    .report-signoff { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 2px solid var(--gold); margin-top: 6px; }
+    .report-signoff > div { padding: 14px; border-right: 1px solid var(--line); }
+    .report-signoff > div:last-child { border-right: 0; }
+    .report-signoff .role { font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 700; letter-spacing: 0.06em; }
+    .report-signoff .name { font-weight: 700; color: var(--navy); margin-top: 4px; }
+    .report-signoff .meta-line { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+    .report-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 10px; }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .letterhead .logo-placeholder { border-color: #999; color: #999; }
+      .topbar, .hero, .footer, .toast-wrap, .panel:not(#reports), #reports .panel-head, #reports .toolbar { display: none !important; }
+      main { max-width: none; padding: 0; }
+      #reports, .pdf-report { display: block !important; border: 0; box-shadow: none; }
+      .pdf-report { margin: 0; }
+      .pdf-cover { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .report-kpis, .report-kpi, .report-table th { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      @page { size: A4 landscape; margin: 12mm; }
+    }
+
+    @media (max-width: 1040px) {
+      .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .hero-inner { grid-template-columns: 1fr; }
+      .live { max-width: 420px; }
+      .signoff-grid { grid-template-columns: 1fr; }
+      .report-signoff { grid-template-columns: 1fr; }
+      .report-signoff > div { border-right: 0; border-bottom: 1px solid var(--line); }
+    }
+    @media (max-width: 720px) {
+      .kpis { grid-template-columns: 1fr 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .search { min-width: 100%; }
+      table { min-width: 720px; }
+      .hero-inner { padding: 30px 16px 24px; gap: 18px; }
+      h1 { font-size: clamp(30px, 11vw, 42px); }
+      .letterhead { flex-wrap: wrap; }
+      .report-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // Paste your deployed Apps Script Web App URL here (see SETUP.md). Left as a
+    // placeholder, the portal runs entirely in local demo mode against sample data.
+    const GAS_URL = "https://script.google.com/macros/library/d/1KXisLYLF4JRpBmNrKHCdRZm_63MRbpVXFs6Qu1FUV0hMMnn9qH8ZXW9w/1";
+  </script>
+
+  <div class="loading" id="loading">
+    <div class="loading-box">
+      <div class="loading-rings"><div class="loading-dot"></div></div>
+      <div class="loading-logo">EE Lab <span>Handover</span></div>
+      <div class="loading-text" id="loadingText">Connecting to the Handover Register</div>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <div class="letterhead">
+      <div class="logo-slot" id="logoLeft"><div class="logo-placeholder">Add Logo<br>(LHS)</div></div>
+      <div class="letterhead-center">
+        <div class="brand-name" id="portalNameTop">EE Lab Digital Handover</div>
+        <div class="brand-sub" id="portalSubTop">KLE Technological University — Electronics &amp; Electrical Lab</div>
+      </div>
+      <div class="logo-slot" id="logoRight"><div class="logo-placeholder">Add Logo<br>(RHS)</div></div>
+    </div>
+    <nav class="nav" id="nav">
+      <button class="active" data-panel="dashboard">Dashboard</button>
+      <button data-panel="inventory">Inventory</button>
+      <button data-panel="handover">Handover</button>
+      <button data-panel="history">History</button>
+      <button data-panel="reports">Reports</button>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <div>
+        <div class="eyebrow">EE Lab · KLE Technological University</div>
+        <h1>Digital Custody <em>Handover Portal</em></h1>
+        <div class="hero-copy">Replacing the paper handover register: the outgoing in-charge digitally signs to release
+          equipment, the incoming in-charge inspects every item for functionality, serial numbers and damage, and a
+          witness countersigns to lock the record — permanently, as the lab's source of truth.</div>
+        <div class="hero-pills">
+          <span class="hero-pill">Email OTP Signatures</span>
+          <span class="hero-pill">72-Hour Inspection Window</span>
+          <span class="hero-pill">Full Audit Trail</span>
+        </div>
+      </div>
+      <div class="live">
+        <div class="live-label">Handover Status</div>
+        <div class="live-status" id="liveStatus">Loading…</div>
+        <div class="countdown" id="liveCountdown"></div>
+        <div class="live-program" id="liveProgram"></div>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <section id="dashboard" class="panel active">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Program Dashboard</div>
+          <div class="panel-sub">Live snapshot of the EE Lab equipment register.</div>
+        </div>
+        <button class="ghost" data-action="sync">Refresh</button>
+      </div>
+      <div class="kpis" id="kpis"></div>
+      <div style="padding:0 18px 18px" id="dashboardBanner"></div>
+    </section>
+
+    <section id="inventory" class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Master Inventory</div>
+          <div class="panel-sub">Read-only catalog — condition is only updated through a signed handover.</div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <input class="field search" id="invSearch" placeholder="Search asset ID, equipment, serial #, location" />
+        <select class="field" id="invCategory"></select>
+        <select class="field" id="invCondition">
+          <option value="">All conditions</option>
+          <option>Working</option><option>Not Working</option><option>Needs Repair</option>
+          <option>Under Calibration</option><option>Missing</option><option>Not Yet Verified</option>
+        </select>
+      </div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Asset ID</th><th>Equipment</th><th>Category</th><th>Serial #</th><th>Location</th><th>Custodian</th><th>Condition</th></tr></thead>
+        <tbody id="invRows"></tbody>
+      </table></div>
+    </section>
+
+    <section id="handover" class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Handover Workflow</div>
+          <div class="panel-sub">Outgoing signs to release &rarr; Incoming inspects &amp; signs to accept &rarr; Witness countersigns.</div>
+        </div>
+      </div>
+      <div class="wizard-card" id="handoverBody"></div>
+    </section>
+
+    <section id="history" class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Handover History</div>
+          <div class="panel-sub">Every completed, overdue, escalated or cancelled cycle — the permanent ledger.</div>
+        </div>
+      </div>
+      <div class="table-scroll"><table>
+        <thead><tr><th>Cycle</th><th>Initiated</th><th>Outgoing</th><th>Incoming</th><th>Witness</th><th>Status</th><th>Completed</th><th></th></tr></thead>
+        <tbody id="historyRows"></tbody>
+      </table></div>
+    </section>
+
+    <section id="reports" class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Handover Certificate</div>
+          <div class="panel-sub">Colorful, printable A4-landscape report for any handover cycle.</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <select class="field" id="reportCycleSelect"></select>
+          <button class="primary" data-action="print-report">Print / Save as PDF</button>
+        </div>
+      </div>
+      <div class="pdf-report" id="pdfReport"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Made with</span><span class="heart">&hearts;</span>
+    <span>~rhc &middot; EE Lab, KLE-CTIE &middot; Last updated <span id="footerUpdated">--</span></span>
+  </footer>
+
+  <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
+  <dialog id="startDialog">
+    <div class="modal-head">
+      <div class="modal-title">Start a New Handover</div>
+      <button class="icon-btn" data-close="startDialog" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <label class="wide">Outgoing In-Charge — Name<input class="field" id="outgoingName" placeholder="Full name" /></label>
+        <label class="wide">Outgoing In-Charge — Email<input class="field" type="email" id="outgoingEmail" placeholder="name@kletech.ac.in" /></label>
+        <label class="wide">Incoming In-Charge — Name<input class="field" id="incomingName" placeholder="Full name" /></label>
+        <label class="wide">Incoming In-Charge — Email<input class="field" type="email" id="incomingEmail" placeholder="name@kletech.ac.in" /></label>
+        <label class="wide">Witness (HOD / Faculty) — Name<input class="field" id="witnessName" placeholder="Full name" /></label>
+        <label class="wide">Witness (HOD / Faculty) — Email<input class="field" type="email" id="witnessEmail" placeholder="name@kletech.ac.in" /></label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" data-close="startDialog">Cancel</button>
+      <button class="primary" id="submitStart">Start Handover &amp; Send Code</button>
+    </div>
+  </dialog>
+
+  <dialog id="otpDialog">
+    <div class="modal-head">
+      <div class="modal-title" id="otpTitle">Enter Verification Code</div>
+      <button class="icon-btn" data-close="otpDialog" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="otpCopy" style="color:var(--muted);font-size:13.5px;line-height:1.5"></div>
+      <label>6-Digit Code<input class="field otp-input" id="otpValue" maxlength="6" inputmode="numeric" placeholder="------" /></label>
+      <button class="ghost" id="resendOtp" style="justify-self:start">Resend Code</button>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" data-close="otpDialog">Cancel</button>
+      <button class="primary" id="submitOtp">Verify &amp; Sign</button>
+    </div>
+  </dialog>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+    const escapeHtml = (v) => String(v ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" }[ch]));
+    const norm = (v) => String(v ?? "").toLowerCase().trim();
+
+    const CONDITIONS = ["Working", "Not Working", "Needs Repair", "Under Calibration", "Missing"];
+
+    const state = {
+      config: {}, inventory: [], activeCycle: null, items: [], history: [], kpis: {},
+      activePanel: "dashboard",
+      otp: { purpose: null, cycleId: null }, // which signature the OTP dialog is currently for
+      reportCycleId: null,
+      countdownTimer: null
+    };
+
+    // ---------------------------------------------------------------------
+    // API layer: talks to the real Apps Script deployment when GAS_URL is
+    // configured, otherwise runs an equivalent state machine entirely in the
+    // browser (demoBackend below) so the whole workflow can be tried locally.
+    // ---------------------------------------------------------------------
+    async function api(action, payload = {}) {
+      if (GAS_URL && !GAS_URL.includes("PASTE_DEPLOYED")) {
+        const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action, ...payload }) });
+        if (!res.ok) throw new Error(`API ${res.status}: open the deployed Apps Script URL, or check GAS_URL.`);
+        return res.json();
+      }
+      return demoBackend(action, payload);
+    }
+
+    async function loadPortal() {
+      try {
+        const data = await api("getPortalData");
+        if (!data.ok) throw new Error(data.error || "Could not load the portal.");
+        Object.assign(state, data);
+        applyConfig();
+        renderAll();
+        $("#loading").classList.add("hidden");
+      } catch (err) {
+        $("#loadingText").textContent = "Could not connect — showing demo data";
+        showToast("Connection issue", err.message || String(err), "error");
+        $("#loading").classList.add("hidden");
+      }
+    }
+
+    function applyConfig() {
+      const c = state.config || {};
+      $("#portalNameTop").textContent = c.portalName || "EE Lab Digital Handover";
+      $("#portalSubTop").textContent = c.portalSub || "KLE Technological University — Electronics & Electrical Lab";
+      renderLogo("#logoLeft", c.logoLeftUrl, "LHS");
+      renderLogo("#logoRight", c.logoRightUrl, "RHS");
+      $("#footerUpdated").textContent = c.lastUpdated || "--";
+    }
+
+    function normalizeLogoUrl(url) {
+      const raw = String(url || "").trim();
+      if (!raw) return "";
+      const match = raw.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/);
+      if (match) return `https://raw.githubusercontent.com/${match[1]}/${match[2]}/${match[3]}/${match[4]}`;
+      return raw;
+    }
+
+    function renderLogo(sel, url, side) {
+      const clean = normalizeLogoUrl(url);
+      const el = $(sel);
+      el.innerHTML = clean
+        ? `<img src="${escapeHtml(clean)}" alt="${side} logo" />`
+        : `<div class="logo-placeholder">Add Logo<br>(${side})</div>`;
+    }
+
+    function renderAll() {
+      renderKpis();
+      renderDashboardBanner();
+      renderInventory();
+      renderHandover();
+      renderHistory();
+      renderReportSelector();
+      renderLiveStatus();
+    }
+
+    function renderKpis() {
+      const k = state.kpis || {};
+      const cards = [
+        ["Total Assets", k.totalAssets ?? state.inventory.length, "Master register"],
+        ["Working", k.working ?? 0, "Confirmed functional"],
+        ["Needs Attention", k.needsAttention ?? 0, "Not working / needs repair"],
+        ["Missing", k.missing ?? 0, "Reported missing"],
+        ["Not Yet Verified", k.notYetVerified ?? 0, "Awaiting first inspection"],
+        ["Categories", k.categories ?? new Set(state.inventory.map(i => i.Category)).size, "Equipment categories"]
+      ];
+      $("#kpis").innerHTML = cards.map(([label, value, sub]) => `
+        <div class="kpi">
+          <div class="kpi-label">${escapeHtml(label)}</div>
+          <div class="kpi-value">${escapeHtml(value)}</div>
+          <div class="kpi-sub">${escapeHtml(sub)}</div>
+        </div>`).join("");
+    }
+
+    function renderDashboardBanner() {
+      const c = state.activeCycle;
+      const el = $("#dashboardBanner");
+      if (!c) {
+        el.innerHTML = `<div class="banner info"><div class="banner-title">No handover in progress</div>
+          <div class="banner-body">The lab register is idle. Open the <b>Handover</b> tab to start a new custody transfer.</div></div>`;
+        return;
+      }
+      el.innerHTML = `<div class="banner warn"><div class="banner-title">Handover ${escapeHtml(c.CycleId)} is ${escapeHtml(statusLabel(c.Status))}</div>
+        <div class="banner-body">Outgoing: <b>${escapeHtml(c.OutgoingName)}</b> &middot; Incoming: <b>${escapeHtml(c.IncomingName)}</b> &middot; Witness: <b>${escapeHtml(c.WitnessName)}</b>. Open the <b>Handover</b> tab to continue.</div></div>`;
+    }
+
+    function statusLabel(status) {
+      return ({
+        Draft: "awaiting the outgoing signature",
+        AwaitingIncomingInspection: "awaiting incoming inspection",
+        AwaitingWitnessApproval: "awaiting witness approval",
+        Completed: "completed",
+        Overdue: "overdue",
+        Escalated: "escalated",
+        Cancelled: "cancelled"
+      })[status] || status;
+    }
+
+    // ---------------------------------------------------------------------
+    // Inventory panel
+    // ---------------------------------------------------------------------
+    function renderCategoryFilter() {
+      const cats = [...new Set(state.inventory.map(i => i.Category).filter(Boolean))].sort();
+      $("#invCategory").innerHTML = `<option value="">All categories</option>` + cats.map(c => `<option>${escapeHtml(c)}</option>`).join("");
+    }
+
+    function conditionClass(cond) {
+      if (cond === "Working") return "";
+      if (cond === "Not Working" || cond === "Missing") return "bad";
+      if (cond === "Needs Repair" || cond === "Under Calibration") return "warn";
+      return "muted";
+    }
+
+    function renderInventory() {
+      renderCategoryFilter();
+      const q = norm($("#invSearch")?.value);
+      const cat = $("#invCategory")?.value || "";
+      const cond = $("#invCondition")?.value || "";
+      const rows = state.inventory.filter(i => {
+        const text = norm([i.AssetID, i.EquipmentName, i.SerialNumber, i.Location, i.Category].join(" "));
+        return (!q || text.includes(q)) && (!cat || i.Category === cat) && (!cond || i.Condition === cond);
+      });
+      $("#invRows").innerHTML = rows.length ? rows.map(i => `
+        <tr>
+          <td><code>${escapeHtml(i.AssetID)}</code></td>
+          <td>${escapeHtml(i.EquipmentName)}</td>
+          <td>${escapeHtml(i.Category)}</td>
+          <td>${escapeHtml(i.SerialNumber)}</td>
+          <td>${escapeHtml(i.Location)}</td>
+          <td>${escapeHtml(i.Custodian) || "—"}</td>
+          <td><span class="status ${conditionClass(i.Condition)}">${escapeHtml(i.Condition || "Not Yet Verified")}</span></td>
+        </tr>`).join("") : `<tr><td colspan="7" class="empty">No matching assets.</td></tr>`;
+    }
+
+    // ---------------------------------------------------------------------
+    // Handover wizard
+    // ---------------------------------------------------------------------
+    function stepClass(stage, current) {
+      const order = ["outgoing", "incoming", "witness"];
+      const ci = order.indexOf(current);
+      const si = order.indexOf(stage);
+      if (!state.activeCycle) return "";
+      if (si < ci) return "done";
+      if (si === ci) return "active";
+      return "";
+    }
+
+    function currentStage() {
+      const s = state.activeCycle?.Status;
+      if (s === "Draft") return "outgoing";
+      if (s === "AwaitingIncomingInspection" || s === "Overdue") return "incoming";
+      if (s === "AwaitingWitnessApproval") return "witness";
+      return "";
+    }
+
+    function wizardSteps() {
+      const cur = currentStage();
+      const step = (key, label) => `<div class="wizard-step ${stepClass(key, cur)}"><span class="dot"></span>${label}</div>`;
+      return `<div class="wizard-steps">
+        ${step("outgoing", "Outgoing Signs")}<span class="wizard-arrow">&rarr;</span>
+        ${step("incoming", "Incoming Inspects &amp; Signs")}<span class="wizard-arrow">&rarr;</span>
+        ${step("witness", "Witness Countersigns")}
+      </div>`;
+    }
+
+    function renderHandover() {
+      const c = state.activeCycle;
+      const body = $("#handoverBody");
+
+      if (!c) {
+        body.innerHTML = `
+          <div class="banner info">
+            <div class="banner-title">No handover currently in progress</div>
+            <div class="banner-body">Start a new custody transfer below. The outgoing in-charge will receive an email verification code to digitally sign the release.</div>
+          </div>
+          <button class="primary" id="openStart">Start New Handover</button>`;
+        $("#openStart").addEventListener("click", () => $("#startDialog").showModal());
+        return;
+      }
+
+      let html = wizardSteps();
+
+      if (c.Status === "Draft") {
+        html += `
+          <div class="banner warn">
+            <div class="banner-title">Awaiting Outgoing Signature</div>
+            <div class="banner-body">A verification code was emailed to <b>${escapeHtml(c.OutgoingEmail)}</b>. Enter it to release custody and start the inspection countdown.</div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="primary" data-open-otp="outgoing">Enter Outgoing's Code</button>
+            <button class="danger" id="cancelCycle">Cancel This Handover</button>
+          </div>`;
+      } else if (c.Status === "AwaitingIncomingInspection" || c.Status === "Overdue") {
+        const checked = state.items.filter(i => i.FunctionalStatus).length;
+        const total = state.items.length || 1;
+        html += `
+          <div class="banner ${c.Status === "Overdue" ? "warn" : "info"}">
+            <div class="banner-title">${c.Status === "Overdue" ? "Overdue — " : ""}Incoming Inspection In Progress</div>
+            <div class="banner-body"><b>${escapeHtml(c.IncomingName)}</b> must inspect every item below — functionality, serial number, and any damage — before signing to accept custody. Deadline: <b>${formatDate(c.Deadline)}</b>.</div>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width:${Math.round(checked / total * 100)}%"></div></div>
+          <div style="color:var(--muted);font-size:12.5px;margin-bottom:14px">${checked} of ${state.items.length} items checked</div>
+          <div class="table-scroll"><table>
+            <thead><tr><th>Asset</th><th>Serial on Record</th><th>Serial Confirmed</th><th>Functional Status</th><th>Damage / Notes</th></tr></thead>
+            <tbody>${state.items.map(item => `
+              <tr class="checklist-row" data-asset="${escapeHtml(item.AssetID)}">
+                <td><b>${escapeHtml(item.EquipmentName)}</b><br><code>${escapeHtml(item.AssetID)}</code></td>
+                <td>${escapeHtml(item.SerialNumberOnRecord) || "—"}</td>
+                <td><select class="field serial-confirm">
+                  <option value="">— Select —</option>
+                  <option ${item.SerialConfirmed === "Yes" ? "selected" : ""}>Yes</option>
+                  <option ${item.SerialConfirmed === "No" ? "selected" : ""}>No</option>
+                  <option ${item.SerialConfirmed === "Mismatch" ? "selected" : ""}>Mismatch</option>
+                </select></td>
+                <td><select class="field func-status">
+                  <option value="">— Select —</option>
+                  ${CONDITIONS.map(cn => `<option ${item.FunctionalStatus === cn ? "selected" : ""}>${cn}</option>`).join("")}
+                </select></td>
+                <td><input class="field damage-notes" value="${escapeHtml(item.DamageNotes || "")}" placeholder="Optional" /></td>
+              </tr>`).join("")}
+            </tbody>
+          </table></div>
+          <div style="margin-top:16px">
+            <button class="primary" id="signIncoming" ${checked < state.items.length ? "disabled" : ""}>Sign &amp; Accept Custody</button>
+          </div>`;
+      } else if (c.Status === "AwaitingWitnessApproval") {
+        const tally = tallyFromItems(state.items);
+        html += `
+          <div class="banner info">
+            <div class="banner-title">Awaiting Witness Approval</div>
+            <div class="banner-body"><b>${escapeHtml(c.IncomingName)}</b> has completed inspection and signed acceptance. <b>${escapeHtml(c.WitnessName)}</b> must countersign to finalize this handover as the permanent record.</div>
+          </div>
+          <div class="kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+            ${reportKpiTile("Working", tally.WorkingCount)}
+            ${reportKpiTile("Needs Attention", tally.DamagedCount)}
+            ${reportKpiTile("Missing", tally.MissingCount)}
+            ${reportKpiTile("Not Verified", tally.NotVerifiedCount)}
+          </div>
+          <button class="primary" data-open-otp="witness" style="margin-top:16px">Enter Witness's Code &amp; Finalize</button>`;
+      }
+
+      body.innerHTML = html;
+      wireHandoverEvents();
+    }
+
+    function reportKpiTile(label, value) {
+      return `<div class="kpi"><div class="kpi-label">${escapeHtml(label)}</div><div class="kpi-value">${escapeHtml(value)}</div></div>`;
+    }
+
+    function tallyFromItems(items) {
+      const t = { WorkingCount: 0, DamagedCount: 0, MissingCount: 0, NotVerifiedCount: 0 };
+      items.forEach(i => {
+        if (i.FunctionalStatus === "Working") t.WorkingCount++;
+        else if (i.FunctionalStatus === "Not Working" || i.FunctionalStatus === "Needs Repair" || i.FunctionalStatus === "Under Calibration") t.DamagedCount++;
+        else if (i.FunctionalStatus === "Missing") t.MissingCount++;
+        else t.NotVerifiedCount++;
+      });
+      return t;
+    }
+
+    function wireHandoverEvents() {
+      $("#cancelCycle")?.addEventListener("click", async () => {
+        const res = await api("cancelHandoverCycle", { cycleId: state.activeCycle.CycleId });
+        if (!res.ok) return showToast("Could not cancel", res.error, "error");
+        showToast("Handover cancelled", "You can start a new one whenever you're ready.", "info");
+        await refreshPortal();
+      });
+      $$("[data-open-otp]").forEach(btn => btn.addEventListener("click", () => openOtpDialog(btn.dataset.openOtp)));
+      $$(".checklist-row").forEach(row => {
+        const assetId = row.dataset.asset;
+        const save = () => saveChecklistRow(assetId, row);
+        row.querySelector(".serial-confirm").addEventListener("change", save);
+        row.querySelector(".func-status").addEventListener("change", save);
+        row.querySelector(".damage-notes").addEventListener("change", save);
+      });
+      $("#signIncoming")?.addEventListener("click", () => openOtpDialog("incoming"));
+    }
+
+    async function saveChecklistRow(assetId, row) {
+      const item = state.items.find(i => i.AssetID === assetId);
+      const payload = {
+        cycleId: state.activeCycle.CycleId,
+        assetId,
+        serialConfirmed: row.querySelector(".serial-confirm").value,
+        functionalStatus: row.querySelector(".func-status").value,
+        damageNotes: row.querySelector(".damage-notes").value,
+        itemRemarks: ""
+      };
+      const res = await api("saveInspectionItem", payload);
+      if (!res.ok) return showToast("Could not save", res.error, "error");
+      Object.assign(item, {
+        SerialConfirmed: payload.serialConfirmed, FunctionalStatus: payload.functionalStatus, DamageNotes: payload.damageNotes
+      });
+      renderHandover();
+    }
+
+    // --- Start dialog ---
+    $("#submitStart").addEventListener("click", async () => {
+      const payload = {
+        outgoingName: $("#outgoingName").value.trim(), outgoingEmail: $("#outgoingEmail").value.trim(),
+        incomingName: $("#incomingName").value.trim(), incomingEmail: $("#incomingEmail").value.trim(),
+        witnessName: $("#witnessName").value.trim(), witnessEmail: $("#witnessEmail").value.trim()
+      };
+      if (Object.values(payload).some(v => !v)) return showToast("Missing details", "Fill in every name and email before starting.", "error");
+      const res = await api("startHandoverCycle", payload);
+      if (!res.ok) return showToast("Could not start handover", res.error, "error");
+      $("#startDialog").close();
+      showToast("Handover initiated", `A verification code was sent to ${payload.outgoingEmail}.`, "success");
+      await refreshPortal();
+      // startHandoverCycle already emailed the outgoing code server-side — skip sending a second one.
+      openOtpDialog("outgoing", { skipSend: true });
+    });
+
+    // --- OTP dialog ---
+    function openOtpDialog(purpose, opts = {}) {
+      state.otp.purpose = purpose;
+      state.otp.cycleId = state.activeCycle.CycleId;
+      const c = state.activeCycle;
+      const email = { outgoing: c.OutgoingEmail, incoming: c.IncomingEmail, witness: c.WitnessEmail }[purpose];
+      const label = { outgoing: "Outgoing In-Charge", incoming: "Incoming In-Charge", witness: "Witness" }[purpose];
+      $("#otpTitle").textContent = `${label} — Digital Signature`;
+      $("#otpCopy").innerHTML = `A one-time code has been emailed to <b>${escapeHtml(email)}</b>. Enter it below to ${
+        purpose === "outgoing" ? "release custody and start the inspection countdown" :
+        purpose === "incoming" ? "accept custody of the inspected equipment" :
+        "countersign and permanently finalize this handover"
+      }.`;
+      $("#otpValue").value = "";
+      $("#otpDialog").showModal();
+      if (!opts.skipSend) requestOtpFor(purpose, true);
+    }
+
+    async function requestOtpFor(purpose, silent) {
+      const c = state.activeCycle;
+      const email = { outgoing: c.OutgoingEmail, incoming: c.IncomingEmail, witness: c.WitnessEmail }[purpose];
+      const res = await api("requestOtp", { email, purpose, cycleId: c.CycleId });
+      if (!res.ok) return showToast("Could not send code", res.error, "error");
+      if (!silent) showToast("Code sent", `A new verification code was emailed to ${email}.`, "success");
+    }
+
+    $("#resendOtp").addEventListener("click", () => requestOtpFor(state.otp.purpose, false));
+
+    $("#submitOtp").addEventListener("click", async () => {
+      const code = $("#otpValue").value.trim();
+      if (!code) return showToast("Enter the code", "Type the 6-digit code from the email.", "error");
+      const c = state.activeCycle;
+      const email = { outgoing: c.OutgoingEmail, incoming: c.IncomingEmail, witness: c.WitnessEmail }[state.otp.purpose];
+      const res = await api("verifyOtp", { email, purpose: state.otp.purpose, cycleId: state.otp.cycleId, code });
+      if (!res.ok) return showToast("Verification failed", res.error, "error");
+      $("#otpDialog").close();
+      const messages = {
+        outgoing: ["Handover Initiated & Digitally Signed", `${c.OutgoingName} has digitally signed to release custody. The 72-hour inspection window has begun for ${c.IncomingName}.`],
+        incoming: ["Equipment Verified & Custody Accepted", `${c.IncomingName} has inspected all items and digitally signed acceptance. Awaiting final witness approval.`],
+        witness: ["Handover Completed & Certified", `${c.WitnessName} has countersigned. This handover is now permanently locked as the source of truth.`]
+      };
+      const [title, body] = messages[state.otp.purpose];
+      showToast(title, body, "success");
+      const completedCycleId = c.CycleId;
+      await refreshPortal();
+      if (state.otp.purpose === "witness") {
+        state.reportCycleId = completedCycleId;
+        renderReportSelector();
+        renderReport();
+        showCompletionBanner(title, body);
+      }
+    });
+
+    function showCompletionBanner(title, body) {
+      $("#handoverBody").innerHTML = `
+        <div class="banner success"><div class="banner-title">${escapeHtml(title)}</div><div class="banner-body">${escapeHtml(body)}</div></div>
+        <button class="primary" data-panel-jump="reports">View Certificate</button>
+        <button class="ghost" id="startAnotherBtn" style="margin-left:10px">Start Another Handover</button>`;
+      $("[data-panel-jump]").addEventListener("click", (e) => openPanel(e.target.dataset.panelJump));
+      $("#startAnotherBtn").addEventListener("click", () => renderHandover());
+    }
+
+    $$("[data-close]").forEach(btn => btn.addEventListener("click", () => $("#" + btn.dataset.close).close()));
+
+    // ---------------------------------------------------------------------
+    // History
+    // ---------------------------------------------------------------------
+    function renderHistory() {
+      const rows = state.history || [];
+      $("#historyRows").innerHTML = rows.length ? rows.map(c => `
+        <tr>
+          <td><code>${escapeHtml(c.CycleId)}</code></td>
+          <td>${formatDate(c.InitiatedAt)}</td>
+          <td>${escapeHtml(c.OutgoingName)}</td>
+          <td>${escapeHtml(c.IncomingName)}</td>
+          <td>${escapeHtml(c.WitnessName)}</td>
+          <td><span class="status ${c.Status === "Completed" ? "" : c.Status === "Cancelled" ? "muted" : "bad"}">${escapeHtml(statusLabel(c.Status))}</span></td>
+          <td>${c.CompletedAt ? formatDate(c.CompletedAt) : "—"}</td>
+          <td><button class="ghost" data-view-cycle="${escapeHtml(c.CycleId)}">View Report</button></td>
+        </tr>`).join("") : `<tr><td colspan="8" class="empty">No handovers recorded yet.</td></tr>`;
+      $$("[data-view-cycle]").forEach(btn => btn.addEventListener("click", () => {
+        state.reportCycleId = btn.dataset.viewCycle;
+        openPanel("reports");
+        renderReportSelector();
+        renderReport();
+      }));
+    }
+
+    // ---------------------------------------------------------------------
+    // Reports
+    // ---------------------------------------------------------------------
+    function renderReportSelector() {
+      const rows = state.history || [];
+      const sel = $("#reportCycleSelect");
+      if (!rows.length) {
+        sel.innerHTML = `<option value="">No completed cycles yet</option>`;
+        state.reportCycleId = null;
+        renderReport();
+        return;
+      }
+      if (!state.reportCycleId) state.reportCycleId = rows[0].CycleId;
+      sel.innerHTML = rows.map(c => `<option value="${escapeHtml(c.CycleId)}" ${c.CycleId === state.reportCycleId ? "selected" : ""}>${escapeHtml(c.CycleId)} — ${escapeHtml(c.OutgoingName)} to ${escapeHtml(c.IncomingName)}</option>`).join("");
+      renderReport();
+    }
+    $("#reportCycleSelect").addEventListener("change", (e) => { state.reportCycleId = e.target.value; renderReport(); });
+    document.addEventListener("click", (e) => {
+      if (e.target.closest("[data-action='print-report']")) window.print();
+      if (e.target.closest("[data-action='sync']")) refreshPortal();
+    });
+
+    async function renderReport() {
+      const el = $("#pdfReport");
+      if (!state.reportCycleId) {
+        el.innerHTML = `<div class="empty">No completed handover to report on yet.</div>`;
+        return;
+      }
+      const res = await api("getCycleReport", { cycleId: state.reportCycleId });
+      if (!res.ok) { el.innerHTML = `<div class="empty">${escapeHtml(res.error || "Report not found.")}</div>`; return; }
+      const { cycle, items, audit, config } = res;
+      const tally = tallyFromItems(items);
+      const flagged = items.filter(i => i.FunctionalStatus && i.FunctionalStatus !== "Working");
+      const leftLogo = normalizeLogoUrl(config.logoLeftUrl);
+      const rightLogo = normalizeLogoUrl(config.logoRightUrl);
+
+      el.innerHTML = `
+        <div class="pdf-cover">
+          <div class="report-logos-row">
+            <div class="report-logo-slot">${leftLogo ? `<img src="${escapeHtml(leftLogo)}" alt="logo">` : `<div class="report-logo-placeholder">Add Logo</div>`}</div>
+            <div class="report-logo-slot">${rightLogo ? `<img src="${escapeHtml(rightLogo)}" alt="logo">` : `<div class="report-logo-placeholder">Add Logo</div>`}</div>
+          </div>
+          <div>
+            <div class="report-cover-title">Equipment Handover <em>Certificate</em></div>
+            <div class="report-cover-sub">${escapeHtml(config.portalName || "EE Lab Digital Handover")} &middot; Cycle ${escapeHtml(cycle.CycleId)} &middot; ${escapeHtml(statusLabel(cycle.Status))}</div>
+          </div>
+          <div class="report-cover-sub">Initiated ${formatDate(cycle.InitiatedAt)} &middot; ${cycle.CompletedAt ? "Completed " + formatDate(cycle.CompletedAt) : "In progress"}</div>
+        </div>
+
+        <div class="report-kpis">
+          ${reportKpiTile("Working", tally.WorkingCount)}
+          ${reportKpiTile("Needs Attention", tally.DamagedCount)}
+          ${reportKpiTile("Missing", tally.MissingCount)}
+          ${reportKpiTile("Not Verified", tally.NotVerifiedCount)}
+        </div>
+
+        <div class="report-section">
+          <div class="report-section-title">Flagged Items (Not Working / Needs Repair / Missing)</div>
+          <table class="report-table">
+            <thead><tr><th>Asset</th><th>Serial on Record</th><th>Status</th><th>Damage / Notes</th></tr></thead>
+            <tbody>${flagged.length ? flagged.map(i => `<tr><td>${escapeHtml(i.EquipmentName)} (${escapeHtml(i.AssetID)})</td><td>${escapeHtml(i.SerialNumberOnRecord)}</td><td>${escapeHtml(i.FunctionalStatus)}</td><td>${escapeHtml(i.DamageNotes) || "—"}</td></tr>`).join("") : `<tr><td colspan="4">No flagged items — every inspected asset is Working.</td></tr>`}</tbody>
+          </table>
+        </div>
+
+        <div class="report-section">
+          <div class="report-section-title">Full Inspection Checklist</div>
+          <table class="report-table">
+            <thead><tr><th>Asset</th><th>Serial on Record</th><th>Serial Confirmed</th><th>Status</th><th>Notes</th></tr></thead>
+            <tbody>${items.map(i => `<tr><td>${escapeHtml(i.EquipmentName)} (${escapeHtml(i.AssetID)})</td><td>${escapeHtml(i.SerialNumberOnRecord)}</td><td>${escapeHtml(i.SerialConfirmed) || "—"}</td><td>${escapeHtml(i.FunctionalStatus) || "Not Verified"}</td><td>${escapeHtml(i.DamageNotes) || "—"}</td></tr>`).join("")}</tbody>
+          </table>
+        </div>
+
+        <div class="report-section">
+          <div class="report-section-title">Digital Sign-Off</div>
+          <div class="report-signoff">
+            <div><div class="role">Outgoing In-Charge</div><div class="name">${escapeHtml(cycle.OutgoingName)}</div><div class="meta-line">${escapeHtml(cycle.OutgoingEmail)}</div><div class="meta-line">Signed: ${formatDate(cycle.OutgoingVerifiedAt) || "—"}</div></div>
+            <div><div class="role">Incoming In-Charge</div><div class="name">${escapeHtml(cycle.IncomingName)}</div><div class="meta-line">${escapeHtml(cycle.IncomingEmail)}</div><div class="meta-line">Signed: ${formatDate(cycle.IncomingVerifiedAt) || "—"}</div></div>
+            <div><div class="role">Witness (HOD / Faculty)</div><div class="name">${escapeHtml(cycle.WitnessName)}</div><div class="meta-line">${escapeHtml(cycle.WitnessEmail)}</div><div class="meta-line">Signed: ${formatDate(cycle.WitnessVerifiedAt) || "—"}</div></div>
+          </div>
+          <div class="report-note">Every signature above was verified with a one-time email code sent to the signer's own inbox. This record is retained permanently in the EE Lab handover register as the source of truth (${audit.length} audit entries).</div>
+        </div>
+      `;
+    }
+
+    // ---------------------------------------------------------------------
+    // Live countdown + panel navigation + toasts
+    // ---------------------------------------------------------------------
+    function renderLiveStatus() {
+      const c = state.activeCycle;
+      if (!c) {
+        $("#liveStatus").textContent = "No handover in progress";
+        $("#liveCountdown").textContent = "";
+        $("#liveProgram").innerHTML = `<div>Start a handover from the <b>Handover</b> tab whenever custody needs to change hands.</div>`;
+        return;
+      }
+      $("#liveStatus").textContent = statusLabel(c.Status);
+      $("#liveProgram").innerHTML = `<div><b>Outgoing</b> ${escapeHtml(c.OutgoingName)}</div><div><b>Incoming</b> ${escapeHtml(c.IncomingName)}</div><div><b>Witness</b> ${escapeHtml(c.WitnessName)}</div>`;
+      tickCountdown();
+    }
+
+    function tickCountdown() {
+      clearInterval(state.countdownTimer);
+      const c = state.activeCycle;
+      if (!c || !c.Deadline || (c.Status !== "AwaitingIncomingInspection" && c.Status !== "Overdue")) {
+        $("#liveCountdown").textContent = "";
+        return;
+      }
+      const update = () => {
+        const ms = new Date(c.Deadline).getTime() - Date.now();
+        const el = $("#liveCountdown");
+        if (ms <= 0) { el.textContent = "Deadline passed"; el.className = "countdown late"; return; }
+        const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000), s = Math.floor((ms % 60000) / 1000);
+        el.textContent = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")} left`;
+        el.className = "countdown" + (ms < 6 * 3600000 ? " warn" : "");
+      };
+      update();
+      state.countdownTimer = setInterval(update, 1000);
+    }
+
+    function formatDate(v) {
+      if (!v) return "";
+      const d = new Date(v);
+      if (isNaN(d)) return String(v);
+      return d.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function openPanel(id) {
+      state.activePanel = id;
+      $$(".panel").forEach(p => p.classList.toggle("active", p.id === id));
+      $$(".nav button").forEach(b => b.classList.toggle("active", b.dataset.panel === id));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    document.addEventListener("click", (e) => {
+      const nav = e.target.closest("[data-panel]");
+      if (nav) openPanel(nav.dataset.panel);
+    });
+    ["invSearch", "invCategory", "invCondition"].forEach(id => document.addEventListener("input", e => { if (e.target.id === id) renderInventory(); }));
+
+    function showToast(title, body, type = "info") {
+      const item = document.createElement("div");
+      item.className = `toast ${type}`;
+      item.innerHTML = `<div class="toast-title">${escapeHtml(title)}</div><div class="toast-body">${escapeHtml(body)}</div>`;
+      $("#toastWrap").appendChild(item);
+      setTimeout(() => item.remove(), 5000);
+    }
+
+    async function refreshPortal() {
+      const data = await api("getPortalData");
+      if (data.ok) { Object.assign(state, data); renderAll(); }
+    }
+
+    // ---------------------------------------------------------------------
+    // Demo backend — mirrors gas/*.gs exactly, running client-side so the
+    // whole workflow (including OTP codes, since there's no real inbox here)
+    // can be exercised without a deployed Apps Script project.
+    // ---------------------------------------------------------------------
+    function demoSeed() {
+      return {
+        config: {
+          portalName: "EE Lab Digital Handover", portalSub: "KLE Technological University — Electronics & Electrical Lab (Demo Mode)",
+          logoLeftUrl: "", logoRightUrl: "", otpWindowHours: 72, otpExpiryMinutes: 10, otpCodeLength: 6,
+          escalationEmails: "eelab.head@kletech.ac.in", allowedEmailDomain: "", lastUpdated: "Demo mode — connect GAS_URL for live data"
+        },
+        inventory: [
+          { AssetID: "MSO-001", Category: "MSO-DSO-Signal-Gen", EquipmentName: "Oscilloscope MSO8064", SerialNumber: "DS8A230500043", Location: "Work Station#7", Custodian: "", Condition: "Not Yet Verified" },
+          { AssetID: "MSO-003", Category: "MSO-DSO-Signal-Gen", EquipmentName: "DSOX2024A", SerialNumber: "MY58104676", Location: "Work Station#2", Custodian: "", Condition: "Not Yet Verified" },
+          { AssetID: "RF-001", Category: "RF-Equipments", EquipmentName: "Frequency Mixer K1-ZX05+", SerialNumber: "NA", Location: "Wooden Cupboard#3", Custodian: "", Condition: "Not Yet Verified" },
+          { AssetID: "DMM-002", Category: "DMM", EquipmentName: "Digital Multimeter U1251B", SerialNumber: "MY59120032", Location: "EE Lab", Custodian: "", Condition: "Not Yet Verified" },
+          { AssetID: "ITA-008", Category: "EE-Lab-IT-Asset", EquipmentName: "Laptop", SerialNumber: "—", Location: "EE Lab", Custodian: "", Condition: "Not Yet Verified" },
+          { AssetID: "CAB-004", Category: "Cables-List", EquipmentName: "Calibration cable 50Ω BNC-BNC", SerialNumber: "54609-61609", Location: "Wooden Cupboard#2", Custodian: "", Condition: "Not Yet Verified" }
+        ],
+        cycles: [], items: [], otp: [], audit: []
+      };
+    }
+    const demo = demoSeed();
+
+    function demoActiveCycle() {
+      const open = demo.cycles.filter(c => ["Draft", "AwaitingIncomingInspection", "AwaitingWitnessApproval", "Overdue"].includes(c.Status));
+      return open.length ? open[open.length - 1] : null;
+    }
+    function demoTally(items) {
+      const t = { WorkingCount: 0, DamagedCount: 0, MissingCount: 0, NotVerifiedCount: 0 };
+      items.forEach(i => {
+        if (i.FunctionalStatus === "Working") t.WorkingCount++;
+        else if (i.FunctionalStatus === "Not Working" || i.FunctionalStatus === "Needs Repair" || i.FunctionalStatus === "Under Calibration") t.DamagedCount++;
+        else if (i.FunctionalStatus === "Missing") t.MissingCount++;
+        else t.NotVerifiedCount++;
+      });
+      return t;
+    }
+    function demoAudit(cycleId, actorEmail, actorRole, action, detail) {
+      demo.audit.push({ Timestamp: new Date(), CycleId: cycleId, ActorEmail: actorEmail, ActorRole: actorRole, Action: action, Detail: detail || "" });
+    }
+
+    async function demoBackend(action, payload) {
+      switch (action) {
+        case "getPortalData": {
+          const inventory = demo.inventory;
+          const activeCycle = demoActiveCycle();
+          const items = activeCycle ? demo.items.filter(i => i.CycleId === activeCycle.CycleId) : [];
+          const history = demo.cycles.filter(c => ["Completed", "Overdue", "Escalated", "Cancelled"].includes(c.Status)).sort((a, b) => new Date(b.InitiatedAt) - new Date(a.InitiatedAt));
+          const kpis = {
+            totalAssets: inventory.length,
+            working: inventory.filter(r => r.Condition === "Working").length,
+            needsAttention: inventory.filter(r => r.Condition === "Not Working" || r.Condition === "Needs Repair").length,
+            missing: inventory.filter(r => r.Condition === "Missing").length,
+            notYetVerified: inventory.filter(r => r.Condition === "Not Yet Verified").length,
+            categories: new Set(inventory.map(r => r.Category)).size
+          };
+          return { ok: true, config: demo.config, inventory, activeCycle, items, history, kpis };
+        }
+        case "requestOtp": {
+          const code = String(Math.floor(100000 + Math.random() * 900000));
+          demo.otp.push({ Email: payload.email, Purpose: payload.purpose, CycleId: payload.cycleId, Code: code, ExpiresAt: new Date(Date.now() + demo.config.otpExpiryMinutes * 60000), Used: false });
+          showToast("Demo mode — code generated", `No real email sent. Your ${payload.purpose} verification code is ${code}.`, "info");
+          return { ok: true };
+        }
+        case "startHandoverCycle": {
+          if (demoActiveCycle()) return { ok: false, error: "A handover is already in progress." };
+          const cycleId = "HC-DEMO-" + String(demo.cycles.length + 1).padStart(4, "0");
+          demo.cycles.push({
+            CycleId: cycleId, InitiatedAt: new Date(), OutgoingName: payload.outgoingName, OutgoingEmail: payload.outgoingEmail,
+            IncomingName: payload.incomingName, IncomingEmail: payload.incomingEmail, WitnessName: payload.witnessName, WitnessEmail: payload.witnessEmail,
+            Status: "Draft", Deadline: null, OutgoingVerifiedAt: null, IncomingVerifiedAt: null, WitnessVerifiedAt: null, CompletedAt: null
+          });
+          demoAudit(cycleId, payload.outgoingEmail, "outgoing", "CYCLE_STARTED", `Outgoing ${payload.outgoingName} initiated handover.`);
+          await demoBackend("requestOtp", { email: payload.outgoingEmail, purpose: "outgoing", cycleId });
+          return { ok: true, cycleId };
+        }
+        case "cancelHandoverCycle": {
+          const cycle = demo.cycles.find(c => c.CycleId === payload.cycleId);
+          if (!cycle) return { ok: false, error: "Cycle not found." };
+          if (cycle.Status !== "Draft") return { ok: false, error: "Only a cycle still awaiting the outgoing signature can be cancelled." };
+          cycle.Status = "Cancelled";
+          return { ok: true };
+        }
+        case "verifyOtp": {
+          const candidates = demo.otp.filter(o => o.Email === payload.email && o.Purpose === payload.purpose && o.CycleId === payload.cycleId && o.Code === payload.code && !o.Used && new Date(o.ExpiresAt) > new Date());
+          if (!candidates.length) return { ok: false, error: "That code is incorrect or has expired. Request a new one and try again." };
+          candidates[candidates.length - 1].Used = true;
+          const cycle = demo.cycles.find(c => c.CycleId === payload.cycleId);
+          if (payload.purpose === "outgoing") {
+            cycle.OutgoingVerifiedAt = new Date();
+            cycle.Deadline = new Date(Date.now() + demo.config.otpWindowHours * 3600000);
+            cycle.Status = "AwaitingIncomingInspection";
+            demo.inventory.forEach(item => demo.items.push({ CycleId: cycle.CycleId, AssetID: item.AssetID, EquipmentName: item.EquipmentName, SerialNumberOnRecord: item.SerialNumber, SerialConfirmed: "", FunctionalStatus: "", DamageNotes: "" }));
+            demoAudit(cycle.CycleId, payload.email, "outgoing", "OTP_VERIFIED", "Outgoing digitally signed to release custody.");
+            return { ok: true, status: cycle.Status };
+          }
+          if (payload.purpose === "incoming") {
+            const items = demo.items.filter(i => i.CycleId === cycle.CycleId);
+            if (items.some(i => !i.FunctionalStatus)) return { ok: false, error: "Complete the checklist for every item before signing." };
+            cycle.IncomingVerifiedAt = new Date();
+            cycle.Status = "AwaitingWitnessApproval";
+            demoAudit(cycle.CycleId, payload.email, "incoming", "OTP_VERIFIED", "Incoming inspected and signed acceptance.");
+            return { ok: true, status: cycle.Status, tally: demoTally(items) };
+          }
+          if (payload.purpose === "witness") {
+            const items = demo.items.filter(i => i.CycleId === cycle.CycleId);
+            cycle.WitnessVerifiedAt = new Date();
+            cycle.Status = "Completed";
+            cycle.CompletedAt = new Date();
+            items.forEach(item => {
+              const inv = demo.inventory.find(i => i.AssetID === item.AssetID);
+              if (inv) { inv.Condition = item.FunctionalStatus; inv.Custodian = cycle.IncomingName; }
+            });
+            demoAudit(cycle.CycleId, payload.email, "witness", "OTP_VERIFIED", "Witness countersigned. Handover completed.");
+            demoAudit(cycle.CycleId, "system", "system", "CYCLE_COMPLETED", JSON.stringify(demoTally(items)));
+            return { ok: true, status: cycle.Status, tally: demoTally(items) };
+          }
+          return { ok: false, error: "Unknown signing purpose." };
+        }
+        case "saveInspectionItem": {
+          const cycle = demo.cycles.find(c => c.CycleId === payload.cycleId);
+          if (!cycle || cycle.Status !== "AwaitingIncomingInspection") return { ok: false, error: "This handover is not open for inspection." };
+          const item = demo.items.find(i => i.CycleId === payload.cycleId && i.AssetID === payload.assetId);
+          if (!item) return { ok: false, error: "Item not found." };
+          Object.assign(item, { SerialConfirmed: payload.serialConfirmed, FunctionalStatus: payload.functionalStatus, DamageNotes: payload.damageNotes });
+          return { ok: true };
+        }
+        case "getCycleReport": {
+          const cycle = demo.cycles.find(c => c.CycleId === payload.cycleId);
+          if (!cycle) return { ok: false, error: "Cycle not found." };
+          const items = demo.items.filter(i => i.CycleId === payload.cycleId);
+          const audit = demo.audit.filter(a => a.CycleId === payload.cycleId);
+          return { ok: true, cycle, items, audit, config: demo.config };
+        }
+        default:
+          return { ok: false, error: `Unknown action: ${action}` };
+      }
+    }
+
+    loadPortal();
+  </script>
+</body>
+</html>
