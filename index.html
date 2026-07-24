@@ -882,7 +882,7 @@
     function renderReportSelector() {
       const rows = state.history || [];
       const sel = $("#reportCycleSelect");
-      const blankOption = `<option value="${BLANK_CHECKLIST_OPTION}">📋 Blank Pre-Handover Checklist (print & sign)</option>`;
+      const blankOption = `<option value="${BLANK_CHECKLIST_OPTION}">📋 Pre-Handover Reference Checklist (print)</option>`;
       if (!rows.length) {
         sel.innerHTML = blankOption;
         state.reportCycleId = BLANK_CHECKLIST_OPTION;
@@ -912,22 +912,25 @@
       const rightLogo = normalizeLogoUrl(cfg.logoRightUrl);
       const inventory = state.inventory || [];
       const categories = new Set(inventory.map(i => i.Category)).size;
-      const CHECKBOX_ROW = ["Working", "Not Working", "Needs Repair", "Under Calibration", "Missing"]
-        .map(label => `&#9744; ${escapeHtml(label)}`).join("&nbsp;&nbsp;&nbsp;");
+      const CHECKBOX_ROW = ["W", "NW", "NR", "UC", "M"]
+        .map(label => `&#9744;${label}`).join("&nbsp;");
 
       let lastCategory = null;
       const rowsHtml = inventory.map(i => {
         const categoryHeader = i.Category !== lastCategory
-          ? `<tr><td colspan="6" style="background:#0d1b3e;color:#fff;font-weight:700">${escapeHtml(i.Category || "Uncategorized")}</td></tr>`
+          ? `<tr><td colspan="5" style="background:#0d1b3e;color:#fff;font-weight:700;padding:4px 8px">${escapeHtml(i.Category || "Uncategorized")}</td></tr>`
           : "";
         lastCategory = i.Category;
+        const sub = [];
+        if (i.Accessories) sub.push(`Accessories: ${escapeHtml(i.Accessories)}`);
+        if (i.LegacyRemarks) sub.push(`Remarks: ${escapeHtml(i.LegacyRemarks)}`);
+        const subLine = sub.length ? `<br><span style="color:var(--muted);font-size:9.5px">${sub.join(" &middot; ")}</span>` : "";
         return `${categoryHeader}<tr>
           <td>${escapeHtml(i.AssetID)}</td>
-          <td>${escapeHtml(i.EquipmentName)}</td>
-          <td>${escapeHtml(i.Location)}</td>
+          <td>${escapeHtml(i.EquipmentName)}${subLine}</td>
           <td>${escapeHtml(i.SerialNumber)}</td>
           <td style="color:var(--muted)">${escapeHtml(i.Condition || "Not Yet Verified")}</td>
-          <td style="font-size:11px">${CHECKBOX_ROW}<br><span style="color:var(--muted)">Damage/Notes: _______________________________</span></td>
+          <td style="white-space:nowrap">${CHECKBOX_ROW} &nbsp;&nbsp;Notes: _________________</td>
         </tr>`;
       }).join("");
 
@@ -944,22 +947,20 @@
           <div class="report-cover-sub">Printed ${formatDate(new Date())} &middot; ${inventory.length} assets across ${categories} categories</div>
         </div>
 
-        <div class="report-section">
-          <div class="report-section-title">How to use this form</div>
-          <div class="report-note" style="font-size:13px">
-            This is a <b>reference-only</b> copy to carry during the physical walkthrough — jot down functionality,
-            serial confirmation, and any damage against each item as you go. It has no signature section: the
-            handover itself is completed and signed entirely in the digital portal (each party verifies with a
-            one-time email code). Enter what you find here into the portal's Handover checklist afterward — that
-            digital record, not this paper, is the official source of truth.
+        <div class="report-section" style="padding-bottom:8px">
+          <div class="report-note" style="font-size:12px">
+            <b>Reference-only</b> — no signature section; the handover is completed and signed entirely in the
+            digital portal (each party verifies with a one-time email code). Enter findings into the portal's
+            Handover checklist afterward — that digital record, not this paper, is the source of truth.
+            &nbsp;<b>Codes:</b> W=Working, NW=Not Working, NR=Needs Repair, UC=Under Calibration, M=Missing.
           </div>
         </div>
 
-        <div class="report-section">
-          <div class="report-section-title">Equipment Checklist (${inventory.length} items)</div>
-          <table class="report-table">
-            <thead><tr><th>Asset ID</th><th>Equipment</th><th>Location</th><th>Serial #</th><th>Last Recorded</th><th>Notes from walkthrough</th></tr></thead>
-            <tbody>${rowsHtml || `<tr><td colspan="6">No inventory loaded.</td></tr>`}</tbody>
+        <div class="report-section" style="padding-top:0">
+          <div class="report-section-title">Equipment Checklist (${inventory.length} items, grouped by category)</div>
+          <table class="report-table" style="font-size:10.5px">
+            <thead><tr><th>Asset ID</th><th>Equipment</th><th>Serial #</th><th>Last Recorded</th><th>Physical Verification</th></tr></thead>
+            <tbody>${rowsHtml || `<tr><td colspan="5">No inventory loaded.</td></tr>`}</tbody>
           </table>
         </div>
       `;
