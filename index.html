@@ -60,6 +60,28 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     @keyframes pulse { 0%, 100% { transform: scale(0.78); opacity: 0.65; } 50% { transform: scale(1); opacity: 1; } }
 
+    .login-screen {
+      position: fixed; inset: 0; z-index: 45; display: none; place-items: center;
+      background: linear-gradient(135deg, rgba(13,27,62,0.97), rgba(24,43,85,0.94)),
+        radial-gradient(circle at 20% 20%, rgba(201,168,76,0.18), transparent 30%);
+      color: white; padding: 20px;
+    }
+    .login-screen.show { display: grid; }
+    .login-card {
+      width: min(420px, 100%);
+      border: 1px solid rgba(201,168,76,0.32);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.08);
+      box-shadow: 0 28px 70px rgba(0,0,0,0.24);
+      padding: 26px;
+      backdrop-filter: blur(14px);
+    }
+    .login-title { font-family: "Cormorant Garamond", serif; font-size: 34px; line-height: 1; }
+    .login-title span { color: var(--gold-2); font-style: italic; }
+    .login-copy { color: rgba(255,255,255,0.62); margin: 10px 0 18px; line-height: 1.55; font-size: 14px; }
+    .login-card .field { width: 100%; background: rgba(255,255,255,0.95); }
+    .login-error { color: #ffb8b8; min-height: 18px; font-size: 13px; margin-top: 10px; }
+
     .letterhead {
       background: rgba(13, 27, 62, 0.96);
       border-bottom: 1px solid rgba(201,168,76,0.24);
@@ -287,16 +309,27 @@
     <div class="loading-box">
       <div class="loading-rings"><div class="loading-dot"></div></div>
       <div class="loading-logo">EE Lab <span>Handover</span></div>
-      <div class="loading-text" id="loadingText">Connecting to the EE Lab,Database...</div>
+      <div class="loading-text" id="loadingText">Connecting to the Handover Register</div>
     </div>
   </div>
+
+  <section class="login-screen" id="loginScreen">
+    <div class="login-card">
+      <div class="login-title">EE Lab <span>Handover</span></div>
+      <div class="login-copy">Enter the portal password to view the register. Signing an actual handover still needs
+        each party's own email verification code — this only gates viewing.</div>
+      <input class="field" id="loginPassword" type="password" placeholder="Portal password" autocomplete="current-password" style="width:100%" />
+      <div class="login-error" id="loginError"></div>
+      <button class="primary" id="loginSubmit" style="width:100%;margin-top:14px">Enter Portal</button>
+    </div>
+  </section>
 
   <header class="topbar">
     <div class="letterhead">
       <div class="logo-slot" id="logoLeft"><div class="logo-placeholder">Add Logo<br>(LHS)</div></div>
       <div class="letterhead-center">
-        <div class="brand-name" id="portalNameTop">Electronics Enabling Lab Digital Handover</div>
-        <div class="brand-sub" id="portalSubTop">KLE Technological University — Electronics &amp; Enabling Lab</div>
+        <div class="brand-name" id="portalNameTop">EE Lab Digital Handover</div>
+        <div class="brand-sub" id="portalSubTop">KLE Technological University — Electronics &amp; Electrical Lab</div>
       </div>
       <div class="logo-slot" id="logoRight"><div class="logo-placeholder">Add Logo<br>(RHS)</div></div>
     </div>
@@ -408,6 +441,8 @@
   <footer class="footer">
     <span>Made with</span><span class="heart">&hearts;</span>
     <span>~rhc &middot; EE Lab, KLE-CTIE &middot; Last updated <span id="footerUpdated">--</span></span>
+    <span>&middot;</span>
+    <button class="ghost" id="logoutBtn" style="min-height:22px;padding:2px 10px;font-size:11px">Logout</button>
   </footer>
 
   <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
@@ -457,47 +492,79 @@
 
     const CONDITIONS = ["Working", "Not Working", "Needs Repair", "Under Calibration", "Missing"];
 
+    const PORTAL_PW_KEY = "eeLabHandoverPortalPassword";
+
     const state = {
       config: {}, inventory: [], activeCycle: null, items: [], history: [], kpis: {},
       activePanel: "dashboard",
       otp: { purpose: null, cycleId: null }, // which signature the OTP dialog is currently for
       reportCycleId: null,
-      countdownTimer: null
+      countdownTimer: null,
+      authPassword: sessionStorage.getItem(PORTAL_PW_KEY) || ""
     };
 
     // ---------------------------------------------------------------------
     // API layer: talks to the real Apps Script deployment when GAS_URL is
     // configured, otherwise runs an equivalent state machine entirely in the
     // browser (demoBackend below) so the whole workflow can be tried locally.
+    // Every call carries the current portal password -- the backend (and its
+    // demo-mode mirror) decides whether one is actually required.
     // ---------------------------------------------------------------------
     async function api(action, payload = {}) {
+      const fullPayload = { ...payload, password: state.authPassword };
       if (GAS_URL && !GAS_URL.includes("PASTE_DEPLOYED")) {
-        const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action, ...payload }) });
+        const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action, ...fullPayload }) });
         if (!res.ok) throw new Error(`API ${res.status}: open the deployed Apps Script URL, or check GAS_URL.`);
         return res.json();
       }
-      return demoBackend(action, payload);
+      return demoBackend(action, fullPayload);
     }
 
     async function loadPortal() {
       try {
         const data = await api("getPortalData");
+        if (data.authRequired) {
+          $("#loading").classList.add("hidden");
+          $("#loginScreen").classList.add("show");
+          $("#loginError").textContent = state.authPassword ? "Incorrect password. Try again." : "";
+          setTimeout(() => $("#loginPassword").focus(), 50);
+          return;
+        }
         if (!data.ok) throw new Error(data.error || "Could not load the portal.");
         Object.assign(state, data);
         applyConfig();
         renderAll();
+        $("#loginScreen").classList.remove("show");
         $("#loading").classList.add("hidden");
       } catch (err) {
-        $("#loadingText").textContent = "Could not connect — showing demo data";
+        $("#loadingText").textContent = "Could not connect — check GAS_URL / your connection";
         showToast("Connection issue", err.message || String(err), "error");
         $("#loading").classList.add("hidden");
       }
     }
 
+    $("#loginSubmit").addEventListener("click", async () => {
+      state.authPassword = $("#loginPassword").value;
+      $("#loginError").textContent = "";
+      $("#loginSubmit").disabled = true;
+      await loadPortal();
+      $("#loginSubmit").disabled = false;
+      if (!$("#loginScreen").classList.contains("show")) {
+        sessionStorage.setItem(PORTAL_PW_KEY, state.authPassword);
+      }
+    });
+    $("#loginPassword").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#loginSubmit").click(); });
+    $("#logoutBtn").addEventListener("click", () => {
+      sessionStorage.removeItem(PORTAL_PW_KEY);
+      state.authPassword = "";
+      $("#loginPassword").value = "";
+      loadPortal();
+    });
+
     function applyConfig() {
       const c = state.config || {};
       $("#portalNameTop").textContent = c.portalName || "EE Lab Digital Handover";
-      $("#portalSubTop").textContent = c.portalSub || "KLE Technological University — Electronics Enabling Lab";
+      $("#portalSubTop").textContent = c.portalSub || "KLE Technological University — Electronics & Electrical Lab";
       renderLogo("#logoLeft", c.logoLeftUrl, "LHS");
       renderLogo("#logoRight", c.logoRightUrl, "RHS");
       $("#footerUpdated").textContent = c.lastUpdated || "--";
@@ -1117,9 +1184,10 @@
     function demoSeed() {
       return {
         config: {
-          portalName: "EE Lab Digital Handover", portalSub: "KLE Technological University — Electronics Enabling Lab (Demo Mode)",
+          portalName: "EE Lab Digital Handover", portalSub: "KLE Technological University — Electronics & Electrical Lab (Demo Mode)",
           logoLeftUrl: "", logoRightUrl: "", otpWindowHours: 72, otpExpiryMinutes: 10, otpCodeLength: 6,
-          escalationEmails: "eelab.head@kletech.ac.in", allowedEmailDomain: "", lastUpdated: "Demo mode — connect GAS_URL for live data"
+          escalationEmails: "eelab.head@kletech.ac.in", allowedEmailDomain: "", portalPassword: "",
+          lastUpdated: "Demo mode — connect GAS_URL for live data"
         },
         inventory: [
           { AssetID: "MSO-001", Category: "MSO-DSO-Signal-Gen", EquipmentName: "Oscilloscope MSO8064", SerialNumber: "DS8A230500043", Location: "Work Station#7", Custodian: "", Condition: "Not Yet Verified" },
@@ -1152,7 +1220,20 @@
       demo.audit.push({ Timestamp: new Date(), CycleId: cycleId, ActorEmail: actorEmail, ActorRole: actorRole, Action: action, Detail: detail || "" });
     }
 
+    // Mirrors gas/Code.gs's checkPortalPassword_() so demo mode's login-gate
+    // behavior (and its authRequired signal) matches the real backend exactly.
+    function demoCheckPassword(payload) {
+      if (!demo.config.portalPassword) return null;
+      if (String(payload.password || "") !== String(demo.config.portalPassword)) {
+        return { ok: false, error: "Incorrect portal password.", authRequired: true };
+      }
+      return null;
+    }
+
     async function demoBackend(action, payload) {
+      const authError = demoCheckPassword(payload);
+      if (authError) return authError;
+
       switch (action) {
         case "getPortalData": {
           const inventory = demo.inventory;
@@ -1167,7 +1248,8 @@
             notYetVerified: inventory.filter(r => r.Condition === "Not Yet Verified").length,
             categories: new Set(inventory.map(r => r.Category)).size
           };
-          return { ok: true, config: demo.config, inventory, activeCycle, items, history, kpis };
+          const { portalPassword, ...clientConfig } = demo.config;
+          return { ok: true, config: clientConfig, inventory, activeCycle, items, history, kpis };
         }
         case "requestOtp": {
           const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -1243,7 +1325,8 @@
           if (!cycle) return { ok: false, error: "Cycle not found." };
           const items = demo.items.filter(i => i.CycleId === payload.cycleId);
           const audit = demo.audit.filter(a => a.CycleId === payload.cycleId);
-          return { ok: true, cycle, items, audit, config: demo.config };
+          const { portalPassword: _pw, ...reportConfig } = demo.config;
+          return { ok: true, cycle, items, audit, config: reportConfig };
         }
         default:
           return { ok: false, error: `Unknown action: ${action}` };
