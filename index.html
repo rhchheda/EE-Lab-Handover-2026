@@ -441,8 +441,10 @@
   <footer class="footer">
     <span>Made with</span><span class="heart">&hearts;</span>
     <span>~rhc &middot; EE Lab, KLE-CTIE &middot; Last updated <span id="footerUpdated">--</span></span>
-    <span>&middot;</span>
-    <button class="ghost" id="logoutBtn" style="min-height:22px;padding:2px 10px;font-size:11px">Logout</button>
+    <span id="logoutWrap" style="display:none">
+      <span>&middot;</span>
+      <button class="ghost" id="logoutBtn" style="min-height:22px;padding:2px 10px;font-size:11px">Logout</button>
+    </span>
   </footer>
 
   <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
@@ -526,6 +528,7 @@
         if (data.authRequired) {
           $("#loading").classList.add("hidden");
           $("#loginScreen").classList.add("show");
+          $("#logoutWrap").style.display = "none"; // nothing to log out of while not yet in
           $("#loginError").textContent = state.authPassword ? "Incorrect password. Try again." : "";
           setTimeout(() => $("#loginPassword").focus(), 50);
           return;
@@ -535,6 +538,9 @@
         applyConfig();
         renderAll();
         $("#loginScreen").classList.remove("show");
+        // Only show Logout when a password was actually required and used --
+        // there's nothing to log out of on an open (no-password-configured) portal.
+        $("#logoutWrap").style.display = state.authPassword ? "" : "none";
         $("#loading").classList.add("hidden");
       } catch (err) {
         $("#loadingText").textContent = "Could not connect — check GAS_URL / your connection";
@@ -567,7 +573,7 @@
       $("#portalSubTop").textContent = c.portalSub || "KLE Technological University — Electronics & Electrical Lab";
       renderLogo("#logoLeft", c.logoLeftUrl, "LHS");
       renderLogo("#logoRight", c.logoRightUrl, "RHS");
-      $("#footerUpdated").textContent = c.lastUpdated || "--";
+      $("#footerUpdated").textContent = formatDate(c.lastUpdated) || "--";
     }
 
     function normalizeLogoUrl(url) {
@@ -1148,7 +1154,13 @@
       if (!v) return "";
       const d = new Date(v);
       if (isNaN(d)) return String(v);
-      return d.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      // Always India time, regardless of the viewer's own browser/OS timezone --
+      // en-IN alone only controls formatting conventions (DD Mon YYYY), not the
+      // actual zone used for the conversion, so timeZone must be set explicitly.
+      return d.toLocaleString("en-IN", {
+        day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+        timeZone: "Asia/Kolkata"
+      }) + " IST";
     }
 
     function openPanel(id) {
